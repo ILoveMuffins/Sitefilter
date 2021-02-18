@@ -3,7 +3,12 @@
 import collections
 import concurrent.futures as futures
 import os
+import sys
 
+
+def readfile(name):
+    with open(name, 'r') as f:
+        return [l.strip() for l in f.readlines()]
 
 SITEFILTER_TMP_DIR = '/tmp/sitefilter'
 UNIQUE_SITES_FILE_PATH = f'{SITEFILTER_TMP_DIR}/unique-sites'
@@ -28,149 +33,10 @@ spiritual
 to-sort-0
 to-sort-1
 """.split()
-
-EXCLUDED_PHRASES = """
-4chan
-abcnews
-aliexpress
-alibaba
-allegro
-amazon
-arvix.org
-audio
-bbc
-blogspot
-book
-buy
-chomikuj
-cosplay
-czyta
-dailymotion
-demotywatory
-discord
-disboard
-ebay
-eska
-etsy
-facebook
-fakt.pl
-film
-flickr
-gallery
-github
-giphy
-google
-health
-herokuapp
-image
-imdb
-instagram
-interia
-issuu
-ksiazk
-media
-nationalgeographic
-msn.com
-newsweek
-nk.pl
-onet.
-photo
-pics
-picture
-pinterest
-psu.ed
-pudelek
-readthedocs
-reddit
-shop
-shutterstock
-slide
-smog.pl
-sport
-stack
-steemit
-travel
-trip
-tube
-tumblr
-tv
-twitter
-usc.edu
-vimeo
-vk.com
-yandex
-youtube
-walmart
-wizaz
-wordpress
-wp.pl
-wyborcza
-""".split()
-
-ALREADY_INCLUDED_SUFFIXES = """
-ac.at
-ac.bd
-ac.be
-ac.cn
-ac.cy
-ac.fj
-ac.id
-ac.il
-ac.in
-ac.ir
-ac.jp
-ac.ke
-ac.kr
-ac.lk
-ac.ma
-ac.nz
-ac.rs
-ac.rs
-ac.ru
-ac.rw
-ac.ss
-ac.th
-ac.tz
-ac.ug
-ac.uk
-ac.za
-ar.al
-bl.uk
-c2.com
-edu.pl
-europa.eu
-go.jp
-inria.fr
-gov.pl
-nj.us
-sap.com
-uc.pt
-uu.nl
-waw.pl
-zendesk.com
-""".split()
-
-LSTRIP_PHRASES = """
-blog.
-bugs.
-dev.
-discuss.
-doc.
-docs.
-forum.
-forums.
-ftp.
-git.
-jira.
-mail.
-man.
-mirror.
-mirrors.
-py.
-src.
-support.
-wiki.
-""".split()
+PATH = sys.path[0]
+EXCLUDED_PHRASES = readfile(f'{PATH}/excluded-phrases.txt')
+ALREADY_INCLUDED_SUFFIXES = readfile(f'{PATH}/included-suffixes.txt')
+LSTRIP_PHRASES = readfile(f'{PATH}/lstrip-phrases.txt')
 
 
 def main():
@@ -192,13 +58,13 @@ def main():
         for site in no_duplicates:
             # end `site` processing conditions
             if any(site.endswith(sufix) for sufix in ALREADY_INCLUDED_SUFFIXES):
+                print(f'sufix in {site}')
                 break
             if any(exc in site for exc in EXCLUDED_PHRASES):
-                print(f'[-] In excluded:', site)
-                break
+                print('exc in {site}')
 
             # add `site` to exception list file
-            print(f'[+] Adding site: {site}')
+            print(f'writting {site}')
             txt = f'{site}\n'
             f.write(txt)
             g.write(txt)
@@ -208,7 +74,7 @@ def create_cache_files():
     sites, excluded = set(), set()
 
     with futures.ThreadPoolExecutor(max_workers=len(FILES)) as executor:
-        files_future = set(executor.submit(read_file, _file) for _file in FILES)
+        files_future = set(executor.submit(f'{PATH}/../{_file}', _file) for _file in FILES)
 
         for future in futures.as_completed(files_future):
             _sites, _excluded = future.result()
@@ -269,12 +135,10 @@ def read_set(fname):
     for site in sites:
         for phrase in LSTRIP_PHRASES:
             if site.startswith(phrase) and site.count('.') > 1:
-                print(f'[*] Removing "{phrase}" from site: "{site}"')
                 site = site.removeprefix(phrase)
                 break
         rtn.add(site)
 
-    print()  # newline
     return rtn
 
 
